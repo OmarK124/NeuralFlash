@@ -83,3 +83,5 @@ export const settings = writable<Settings>({
     console.log("Settings saved");
   });
 })();
+
+

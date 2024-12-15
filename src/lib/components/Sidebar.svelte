@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { cn } from '$lib/utils.js';
-	import { isEditMode, selectedSubject, subjects, settings } from '$lib/stores';
+	import { isEditMode, selectedSubject, subjects, settings, selectedFlashcard } from '$lib/stores';
 	import AddSubjectDialog from '$lib/components/AddSubjectDialog.svelte';
 	import SettingsSheet from '$lib/components/SettingsSheet.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Pencil } from 'lucide-svelte';
+	import { Pencil, Plus } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
+	import { goto } from '$app/navigation';
+	import { Separator } from './ui/separator';
 
 	let editedName = '';
 	let subjectToDelete: any = null;
@@ -44,16 +46,20 @@
 			hard: flashcards.filter((f) => f.difficulty === 'hard').length
 		};
 	}
+
+	$: if (selectedSubject) selectedFlashcard.set(null);
 </script>
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
-		<h2 class="text-2xl font-bold">Subjects</h2>
+		<Button size="default" variant="default" on:click={() => goto('/reader')}>Start Practice</Button
+		>
 		<div class="flex gap-2">
+			<SettingsSheet />
+			<Separator orientation="vertical" />
 			<Button variant="ghost" size="icon" onclick={() => isEditMode.update((v) => !v)}>
 				<Pencil />
 			</Button>
-			<SettingsSheet />
 			<AddSubjectDialog />
 		</div>
 	</div>
@@ -65,8 +71,8 @@
 					<div class="card-front absolute h-full w-full">
 						<Card
 							class={cn(
-								'p-4 cursor-pointer hover:bg-secondary/80 transition-colors',
-								$selectedSubject?.id === subject.id && 'bg-primary/80'
+								'p-4 cursor-pointer hover:bg-secondary/80',
+								$selectedSubject?.id === subject.id && 'bg-muted'
 							)}
 							onclick={() => {
 								console.log('subject');

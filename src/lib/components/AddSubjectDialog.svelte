@@ -4,6 +4,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { subjects } from '$lib/stores';
 	import { nanoid } from 'nanoid';
+	import { Plus } from 'lucide-svelte';
 
 	let newSubjectName = '';
 	let open = false;
@@ -32,7 +33,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Trigger>
-		<Button>Add Subject</Button>
+		<Button size="icon" variant="ghost"><Plus /></Button>
 	</Dialog.Trigger>
 	<Dialog.Content>
 		<Dialog.Header>

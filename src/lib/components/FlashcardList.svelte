@@ -7,9 +7,9 @@
 	import { cn } from '$lib/utils';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Badge } from '$lib/components/ui/badge';
-	import { goto } from '$app/navigation';
 	import { Sparkles } from 'lucide-svelte';
 	import AIImportDialog from './AIImportDialog.svelte';
+	import { Separator } from '$lib/components/ui/separator';
 
 	let editDialogOpen = false;
 	let aiImportOpen = false;
@@ -56,33 +56,32 @@
 			});
 		});
 	}
-
-	$: console.log($subjects);
 </script>
 
 {#if $selectedSubject}
 	<div class="space-y-4">
-		<div class="flex items-center justify-end">
-			<div class="space-x-2 flex justify-between">
-				<Button variant="outline" on:click={() => (aiImportOpen = true)}>
-					<Sparkles class="w-4 h-4 mr-2" />
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-2">
+				<Button size="default" variant="outline" on:click={() => (aiImportOpen = true)}>
+					<Sparkles class="w-4 h-4 mr-2 " color={'yellow'} />
 					Import with AI
 				</Button>
-				{#if currentFlashcards.length > 0}
-					<Button variant="default" class="bg-red-600 hover:bg-red-700" on:click={resetAllToHard}>
-						Reset All to Hard
-					</Button>
-					<Button
-						variant="default"
-						class="bg-green-600 hover:bg-green-700"
-						on:click={() => goto('/reader')}
-					>
-						Start Practice
-					</Button>
-				{/if}
+				<Separator orientation="vertical" />
+			</div>
+			{#if currentFlashcards.length > 0}
+				<Button size="default" variant="destructive" on:click={resetAllToHard}
+					>Reset All to Hard</Button
+				>
+			{/if}
+			<AddFlashcardDialog />
+
+			<div class="space-x-2">
 				{#if $selectedFlashcard}
-					<Button variant="outline" on:click={() => (editDialogOpen = true)}>Edit</Button>
+					<Button size="default" variant="outline" on:click={() => (editDialogOpen = true)}
+						>Edit</Button
+					>
 					<Button
+						size="default"
 						variant="destructive"
 						on:click={(e) => {
 							e.stopPropagation();
@@ -90,7 +89,6 @@
 						}}>Delete</Button
 					>
 				{/if}
-				<AddFlashcardDialog />
 			</div>
 		</div>
 
@@ -106,7 +104,10 @@
 				{#each currentFlashcards as flashcard (flashcard.id)}
 					<Table.Row
 						on:click={() => selectedFlashcard.set(flashcard)}
-						class={cn('cursor-pointer', $selectedFlashcard?.id === flashcard.id && 'bg-muted')}
+						class={cn(
+							'cursor-pointer',
+							$selectedFlashcard?.id === flashcard.id && 'bg-secondary/80'
+						)}
 					>
 						<Table.Cell>
 							<div class="flex items-center gap-2">

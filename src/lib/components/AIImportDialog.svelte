@@ -6,7 +6,7 @@
 	import { Slider } from '$lib/components/ui/slider/index.js';
 	import { GoogleGenerativeAI } from '@google/generative-ai';
 	import { selectedSubject, settings, subjects, type Flashcard } from '$lib/stores';
-
+	import { LoaderCircle } from 'lucide-svelte';
 	export let open = false;
 
 	let textInput = '';
@@ -152,6 +152,7 @@
 			<Dialog.Close>Cancel</Dialog.Close>
 			<Button type="submit" on:click={handleSubmit} disabled={isProcessing}>
 				{#if isProcessing}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					Processing...
 				{:else}
 					Create Flashcards

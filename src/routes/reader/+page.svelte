@@ -4,6 +4,7 @@
 	import { selectedSubject, subjects } from '$lib/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
+	import { writable } from 'svelte/store';
 
 	let currentIndex = 0;
 	let isFlipped = false;
@@ -11,6 +12,8 @@
 	let currentCard: any;
 	let frontImageUrl: string | null = null;
 	let backImageUrl: string | null = null;
+	let isAnimating = false;
+	const slideDirection = writable('');
 
 	onMount(() => {
 		if (!$selectedSubject) {
@@ -53,7 +56,17 @@
 		};
 	});
 
-	function handleAnswer(difficulty: 'easy' | 'hard') {
+	async function handleAnswer(difficulty: 'easy' | 'hard') {
+		isFlipped = false;
+		if (isAnimating) return;
+		isAnimating = true;
+
+		// Set slide direction
+		$slideDirection = difficulty === 'easy' ? 'right' : 'left';
+
+		// Wait for animation to complete
+		await new Promise((resolve) => setTimeout(resolve, 300));
+
 		// Clean up existing URLs
 		if (frontImageUrl) URL.revokeObjectURL(frontImageUrl);
 		if (backImageUrl) URL.revokeObjectURL(backImageUrl);
@@ -102,6 +115,8 @@
 		}
 
 		isFlipped = false;
+		isAnimating = false;
+		$slideDirection = '';
 	}
 </script>
 
@@ -116,6 +131,8 @@
 	{#if remainingCards.length > 0}
 		<div
 			class="w-[800px] h-[600px] perspective-1000 cursor-pointer"
+			class:slide-left={$slideDirection === 'left'}
+			class:slide-right={$slideDirection === 'right'}
 			on:click={() => (isFlipped = !isFlipped)}
 		>
 			<div
@@ -186,5 +203,27 @@
 
 	.backface-hidden {
 		backface-visibility: hidden;
+	}
+
+	.slide-left {
+		animation: slideLeft 0.3s ease-out;
+	}
+
+	.slide-right {
+		animation: slideRight 0.3s ease-out;
+	}
+
+	@keyframes slideLeft {
+		to {
+			transform: translateX(-150%) rotate(-20deg);
+			opacity: 0;
+		}
+	}
+
+	@keyframes slideRight {
+		to {
+			transform: translateX(150%) rotate(20deg);
+			opacity: 0;
+		}
 	}
 </style>
