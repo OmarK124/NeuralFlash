@@ -8,8 +8,11 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Badge } from '$lib/components/ui/badge';
 	import { goto } from '$app/navigation';
+	import { Sparkles } from 'lucide-svelte';
+	import AIImportDialog from './AIImportDialog.svelte';
 
 	let editDialogOpen = false;
+	let aiImportOpen = false;
 	let flashcardToDelete: any = null;
 	let currentFlashcards: any[] = [];
 
@@ -59,9 +62,12 @@
 
 {#if $selectedSubject}
 	<div class="space-y-4">
-		<div class="flex items-center justify-between">
-			<h2 class="text-2xl font-bold">{$selectedSubject.name}</h2>
-			<div class="space-x-2">
+		<div class="flex items-center justify-end">
+			<div class="space-x-2 flex justify-between">
+				<Button variant="outline" on:click={() => (aiImportOpen = true)}>
+					<Sparkles class="w-4 h-4 mr-2" />
+					Import with AI
+				</Button>
 				{#if currentFlashcards.length > 0}
 					<Button variant="default" class="bg-red-600 hover:bg-red-700" on:click={resetAllToHard}>
 						Reset All to Hard
@@ -137,6 +143,7 @@
 	</div>
 
 	<EditFlashcardDialog bind:open={editDialogOpen} flashcard={$selectedFlashcard} />
+	<AIImportDialog bind:open={aiImportOpen} />
 	<AlertDialog.Root open={flashcardToDelete !== null}>
 		<AlertDialog.Content>
 			<AlertDialog.Header>

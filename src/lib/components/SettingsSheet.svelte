@@ -6,9 +6,25 @@
 	import { resetMode, setMode } from 'mode-watcher';
 	import { settings } from '$lib/stores';
 	import { Switch } from '$lib/components/ui/switch';
+	import { Input } from '$lib/components/ui/input';
+
+	let apiKey = $settings.googleAIStudioKey ?? '';
+	let open = false;
+
+	$: if (open) {
+		apiKey = $settings.googleAIStudioKey ?? '';
+	}
+
+	function handleOpenChange(isOpen: boolean) {
+		open = isOpen;
+		if (!isOpen) {
+			console.log('API Key:', apiKey);
+			settings.update((s) => ({ ...s, googleAIStudioKey: apiKey || undefined }));
+		}
+	}
 </script>
 
-<Sheet.Root>
+<Sheet.Root {open} onOpenChange={handleOpenChange}>
 	<Sheet.Trigger asChild let:builder>
 		<Button builders={[builder]} variant="ghost" size="icon">
 			<Settings class="w-5 h-5" />
@@ -56,6 +72,12 @@
 						settings.update((s) => ({ ...s, alwaysAskBeforeDelete: checked }));
 					}}
 				/>
+			</div>
+			<div class="grid grid-cols-4 items-center gap-4">
+				<span class="text-right">Google AI Studio API Key</span>
+				<div class="col-span-3">
+					<Input type="password" bind:value={apiKey} placeholder="Enter API key" />
+				</div>
 			</div>
 		</div>
 	</Sheet.Content>

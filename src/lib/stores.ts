@@ -23,6 +23,7 @@ export interface Subject {
 export interface Settings {
   colorMode: 'system' | 'light' | 'dark';
   alwaysAskBeforeDelete: boolean;
+  googleAIStudioKey?: string;
 }
 
 //non-persistant stores
@@ -32,8 +33,11 @@ export const isEditMode = writable(false);
 
 //persistant stores
 export const subjects = writable<Subject[]>([]);
-export const settings = writable<Settings>({ colorMode: 'light', alwaysAskBeforeDelete: true });
-
+export const settings = writable<Settings>({ 
+  colorMode: 'light', 
+  alwaysAskBeforeDelete: true,
+  googleAIStudioKey: '' 
+});
 
 (async () => {
   // Load the subjects store
