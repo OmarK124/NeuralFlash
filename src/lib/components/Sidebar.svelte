@@ -9,6 +9,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
+	import { Badge } from '$lib/components/ui/badge';
 
 	let editedName = '';
 	let subjectToDelete: any = null;
@@ -35,6 +36,13 @@
 			);
 			subjectToEdit = null;
 		}
+	}
+
+	function getDifficultyCounts(flashcards: any[]) {
+		return {
+			easy: flashcards.filter((f) => f.difficulty === 'easy').length,
+			hard: flashcards.filter((f) => f.difficulty === 'hard').length
+		};
 	}
 </script>
 
@@ -67,7 +75,15 @@
 						>
 							<div>
 								<h3 class="font-medium">{subject.name}</h3>
-								<p class="text-sm">{subject.flashcards.length} cards</p>
+								<div class="flex gap-2 mt-1">
+									{#if subject.flashcards.length > 0}
+										{@const counts = getDifficultyCounts(subject.flashcards)}
+										<Badge class="bg-green-600">{counts.easy} Easy</Badge>
+										<Badge variant="destructive">{counts.hard} Hard</Badge>
+									{:else}
+										<p class="text-sm">No cards</p>
+									{/if}
+								</div>
 							</div>
 						</Card>
 					</div>

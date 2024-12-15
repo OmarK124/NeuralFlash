@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/Sidebar.svelte';
-	import FlashcardGrid from '$lib/components/FlashcardGrid.svelte';
+	import FlashcardList from '$lib/components/FlashcardList.svelte';
 </script>
 
 <div class="container mx-auto p-4">
@@ -8,7 +8,7 @@
 		<Sidebar />
 
 		<div>
-			<FlashcardGrid />
+			<FlashcardList />
 		</div>
 	</div>
 </div>
