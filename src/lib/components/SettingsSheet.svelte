@@ -4,6 +4,8 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { resetMode, setMode } from 'mode-watcher';
+	import { settings } from '$lib/stores';
+	import { Switch } from '$lib/components/ui/switch';
 </script>
 
 <Sheet.Root>
@@ -33,11 +35,27 @@
 						</Button>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end">
-						<DropdownMenu.Item on:click={() => setMode('light')}>Light</DropdownMenu.Item>
-						<DropdownMenu.Item on:click={() => setMode('dark')}>Dark</DropdownMenu.Item>
-						<DropdownMenu.Item on:click={() => resetMode()}>System</DropdownMenu.Item>
+						{#each [{ mode: 'light' }, { mode: 'dark' }, { mode: 'system' }] as { mode }}
+							<DropdownMenu.Item
+								onclick={() => {
+									settings.update((s) => ({ ...s, colorMode: mode as any }));
+									mode === 'system' ? resetMode() : setMode(mode as any);
+								}}
+							>
+								{mode[0].toUpperCase() + mode.slice(1)}
+							</DropdownMenu.Item>
+						{/each}
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
+			</div>
+			<div class="grid grid-cols-4 items-center gap-4">
+				<span class="text-right">Confirm Deletions</span>
+				<Switch
+					checked={$settings.alwaysAskBeforeDelete}
+					onCheckedChange={(checked) => {
+						settings.update((s) => ({ ...s, alwaysAskBeforeDelete: checked }));
+					}}
+				/>
 			</div>
 		</div>
 	</Sheet.Content>

@@ -21,46 +21,59 @@ export interface Subject {
 
 export interface Settings {
   colorMode: 'system' | 'light' | 'dark';
+  alwaysAskBeforeDelete: boolean;
 }
 
+//non-persistant stores
+export const selectedSubject = writable<Subject | null>(null);
+export const isEditMode = writable(false);
+
+//persistant stores
 export const subjects = writable<Subject[]>([]);
-export const settings = writable<Settings>({ colorMode: 'light' });
+export const settings = writable<Settings>({ colorMode: 'light', alwaysAskBeforeDelete: true });
 
-(async () => {
-  // Load the subjects store
-  const subjectsStore = await load('store.bin', { autoSave: false });
-  // Load the settings store
-  const settingsStore = await load('settings.json', { autoSave: false });
 
-  // Load existing subjects data
-  const packedDataBase64 = await subjectsStore.get<string>('subjects');
+// (async () => {
+//   // Load the subjects store
+//   const subjectsStore = await load('store.bin', { autoSave: false });
+//   // Load the settings store
+//   const settingsStore = await load('settings.json', { autoSave: false });
 
-  if (packedDataBase64) {
-    const packedData = Uint8Array.from(
-      atob(packedDataBase64),
-      (c) => c.charCodeAt(0)
-    );
-    const data = unpack(packedData);
-    subjects.set(data as Subject[]);
-  }
+//   // Load existing subjects data
+//   const packedDataBase64 = await subjectsStore.get<string>('subjects');
 
-  // Load existing settings
-  const savedSettings = await settingsStore.get<Settings>('settings');
-  if (savedSettings) {
-    settings.set(savedSettings);
-  }
+//   if (packedDataBase64) {
+//     const packedData = Uint8Array.from(
+//       atob(packedDataBase64),
+//       (c) => c.charCodeAt(0)
+//     );
+//     const data = unpack(packedData);
+//     subjects.set(data as Subject[]);
+//   }
 
-  // Save subjects whenever they change
-  subjects.subscribe(async (value) => {
-    const packedData = pack(value);
-    const packedDataBase64 = btoa(String.fromCharCode(...packedData));
-    await subjectsStore.set('subjects', packedDataBase64);
-    await subjectsStore.save();
-  });
+//   // Load existing settings
+//   const savedSettings = await settingsStore.get<Settings>('settings');
+//   if (savedSettings) {
+//     settings.set(savedSettings);
+//   }
 
-  // Save settings whenever they change
-  settings.subscribe(async (value) => {
-    await settingsStore.set('settings', value);
-    await settingsStore.save();
-  });
-})();
+//   // Save subjects whenever they change
+//   subjects.subscribe(async (value) => {
+//     console.log("Cards changed", value);
+
+//     const packedData = pack(value);
+//     const packedDataBase64 = btoa(String.fromCharCode(...packedData));
+//     await subjectsStore.set('subjects', packedDataBase64);
+//     await subjectsStore.save();
+//     console.log("Cards saved");
+
+//   });
+
+//   // Save settings whenever they change
+//   settings.subscribe(async (value) => {
+//     console.log("Settings changed", value);
+//     await settingsStore.set('settings', value);
+//     await settingsStore.save();
+//     console.log("Settings saved");
+//   });
+// })();

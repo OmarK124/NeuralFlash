@@ -1,21 +1,21 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import {
-		Dialog,
-		DialogContent,
-		DialogHeader,
-		DialogTitle,
-		DialogTrigger
-	} from '$lib/components/ui/dialog';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { subjects } from '$lib/stores';
 	import { nanoid } from 'nanoid';
 
 	let newSubjectName = '';
+	let open = false;
+	let error = ''; // Add error state
 
 	function addSubject() {
-		if (!newSubjectName.trim()) return;
+		if (!newSubjectName.trim()) {
+			error = 'Subject name cannot be empty';
+			return;
+		}
 
+		error = ''; // Clear error
 		$subjects = [
 			...$subjects,
 			{
@@ -26,20 +26,26 @@
 		];
 
 		newSubjectName = '';
+		open = false;
 	}
 </script>
 
-<Dialog>
-	<DialogTrigger asChild>
+<Dialog.Root bind:open>
+	<Dialog.Trigger>
 		<Button>Add Subject</Button>
-	</DialogTrigger>
-	<DialogContent>
-		<DialogHeader>
-			<DialogTitle>Add New Subject</DialogTitle>
-		</DialogHeader>
+	</Dialog.Trigger>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Add New Subject</Dialog.Title>
+		</Dialog.Header>
 		<div class="space-y-4">
 			<Input bind:value={newSubjectName} placeholder="Subject name" />
-			<Button onclick={addSubject}>Create</Button>
+			{#if error}
+				<p class="text-sm text-red-500">{error}</p>
+			{/if}
 		</div>
-	</DialogContent>
-</Dialog>
+		<Dialog.Footer>
+			<Button type="submit" onclick={addSubject}>Create</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

@@ -1,32 +1,168 @@
 <script lang="ts">
 	import { Card } from '$lib/components/ui/card';
 	import { cn } from '$lib/utils.js';
-	import { subjects, type Subject } from '$lib/stores';
+	import { isEditMode, selectedSubject, subjects, settings } from '$lib/stores';
 	import AddSubjectDialog from '$lib/components/AddSubjectDialog.svelte';
 	import SettingsSheet from '$lib/components/SettingsSheet.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Pencil } from 'lucide-svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
 
-	export let selectedSubject: Subject | null;
+	let editedName = '';
+	let subjectToDelete: any = null;
+	let subjectToEdit: any = null;
+	function deleteSubject(subject: any) {
+		if ($settings.alwaysAskBeforeDelete) {
+			subjectToDelete = subject;
+		} else {
+			subjects.update((s) => s.filter((s) => s.id !== subject.id));
+			if ($selectedSubject?.id === subject.id) {
+				selectedSubject.set(null);
+			}
+		}
+	}
+	function handleEditSubmit() {
+		if (editedName.trim() && editedName !== subjectToEdit.name) {
+			subjects.update((s) =>
+				s.map((s) => {
+					if (s.id === subjectToEdit.id) {
+						return { ...s, name: editedName };
+					}
+					return s;
+				})
+			);
+			subjectToEdit = null;
+		}
+	}
 </script>
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h2 class="text-2xl font-bold">Subjects</h2>
-		<SettingsSheet />
-		<AddSubjectDialog />
+		<div class="flex gap-2">
+			<Button variant="ghost" size="icon" onclick={() => isEditMode.update((v) => !v)}>
+				<Pencil />
+			</Button>
+			<SettingsSheet />
+			<AddSubjectDialog />
+		</div>
 	</div>
 
 	<div class="space-y-2">
 		{#each $subjects as subject}
-			<Card
-				class={cn(
-					'p-4 cursor-pointer hover:bg-secondary/80 transition-colors',
-					selectedSubject?.id === subject.id && 'bg-primary/80'
-				)}
-				onclick={() => (selectedSubject = subject)}
-			>
-				<h3 class="font-medium">{subject.name}</h3>
-				<p class="text-sm">{subject.flashcards.length} cards</p>
-			</Card>
+			<div class="card-container" class:flipped={$isEditMode}>
+				<div class="card-inner relative h-full">
+					<div class="card-front absolute h-full w-full">
+						<Card
+							class={cn(
+								'p-4 cursor-pointer hover:bg-secondary/80 transition-colors',
+								$selectedSubject?.id === subject.id && 'bg-primary/80'
+							)}
+							onclick={() => {
+								console.log('subject');
+								selectedSubject.set(subject);
+							}}
+						>
+							<div>
+								<h3 class="font-medium">{subject.name}</h3>
+								<p class="text-sm">{subject.flashcards.length} cards</p>
+							</div>
+						</Card>
+					</div>
+					<div class="card-back absolute h-full w-full">
+						<Card class={cn('p-4 cursor-pointer hover:bg-secondary/80 transition-colors')}>
+							<div class="flex justify-between items-center">
+								<div>
+									<h3 class="font-medium">{subject.name}</h3>
+									<p class="text-sm">{subject.flashcards.length} cards</p>
+								</div>
+								<div class="flex gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => {
+											subjectToEdit = subject;
+											editedName = subject.name;
+										}}>Edit</Button
+									>
+									<Button variant="destructive" size="sm" onclick={() => deleteSubject(subject)}>
+										Delete
+									</Button>
+								</div>
+							</div>
+						</Card>
+					</div>
+				</div>
+			</div>
 		{/each}
 	</div>
 </div>
+
+<AlertDialog.Root open={subjectToDelete !== null}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Are you sure?</AlertDialog.Title>
+			<AlertDialog.Description>
+				This will permanently delete the subject "{subjectToDelete?.name}" and all its flashcards.
+				This action cannot be undone.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={() => (subjectToDelete = null)}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action
+				onclick={() => {
+					subjects.update((s) => s.filter((s) => s.id !== subjectToDelete.id));
+					if ($selectedSubject?.id === subjectToDelete.id) {
+						selectedSubject.set(null);
+					}
+					subjectToDelete = null;
+				}}
+			>
+				Delete
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<Dialog.Root open={subjectToEdit !== null}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Edit Subject</Dialog.Title>
+			<Dialog.Description>Change the name of the subject.</Dialog.Description>
+		</Dialog.Header>
+		<div class="py-4">
+			<Input bind:value={editedName} placeholder="Subject name" />
+		</div>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (subjectToEdit = null)}>Cancel</Button>
+			<Button onclick={handleEditSubmit}>Save changes</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<style>
+	.card-container {
+		perspective: 1000px;
+		height: 80px; /* Add fixed height */
+		margin-bottom: 8px; /* Add spacing between cards */
+	}
+
+	.card-inner {
+		transition: transform 0.6s;
+		transform-style: preserve-3d;
+		z-index: 2;
+	}
+
+	.card-container.flipped .card-inner {
+		transform: rotateY(180deg);
+	}
+	.card-front,
+	.card-back {
+		backface-visibility: hidden;
+	}
+	.card-back {
+		transform: rotateY(180deg);
+	}
+</style>
