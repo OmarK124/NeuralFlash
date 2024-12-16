@@ -4,65 +4,39 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import { Slider } from '$lib/components/ui/slider/index.js';
-	import { GoogleGenerativeAI } from '@google/generative-ai';
-	import { selectedSubject, settings, subjects, type Flashcard } from '$lib/stores';
+	import { selectedSubject, settings, subjects } from '$lib/stores';
+	import { nanoid } from 'nanoid';
 	import { LoaderCircle } from 'lucide-svelte';
+	import { open as TauriOpen } from '@tauri-apps/plugin-dialog';
 	export let open = false;
 
 	let textInput = '';
-	let files: FileList | null = null;
+	let filePath: string | null = null;
 	let temperature = [1];
 	let isProcessing = false;
 	let error: string | null = null;
 
-	const processWithAI = async (text: string, uploadedFiles: FileList | null) => {
-		if (!$settings.googleAIStudioKey) return;
-		const genAI = new GoogleGenerativeAI($settings.googleAIStudioKey);
-		const model = genAI.getGenerativeModel({
-			model: 'gemini-2.0-flash-exp'
-		});
-
-		const generationConfig = {
-			temperature: temperature[0],
-			topP: 0.95,
-			topK: 40,
-			maxOutputTokens: 8192,
-			responseMimeType: 'text/plain'
-		};
-
+	async function selectFile() {
 		try {
-			const chatSession = model.startChat({ generationConfig });
-			const parts = [];
-
-			if (uploadedFiles) {
-				for (const file of Array.from(uploadedFiles)) {
-					const fileContent = await file.text();
-					parts.push({ text: fileContent });
-				}
-			}
-
-			if (text) {
-				parts.push({ text });
-			}
-
-			parts.push({
-				text: 'Given this information:\n\nYou\'ll provide smart and comprehensive flashcards in the following json format\n\ne.g.\n[\n{\n"front": TEXT,\n"back":TEXT\n},\n....]\n'
+			const selected = await TauriOpen({
+				multiple: false,
+				directory: false
 			});
-
-			const result = await chatSession.sendMessage(parts);
-			return result.response.text();
-		} catch (e) {
-			throw new Error('Failed to process with AI: ' + e.message);
+			filePath = selected;
+		} catch (err) {
+			console.error('Error selecting file:', err);
+			error = 'Failed to select file';
 		}
-	};
+		console.log('Selected file:', filePath);
+	}
 
 	async function handleSubmit() {
-		if (!textInput && (!files || files.length === 0)) {
-			error = 'Please provide either text input or upload files';
+		if (!$settings.googleAIStudioKey) {
+			error = 'API key is required. Please add it in settings.';
 			return;
 		}
-		if (!$selectedSubject) {
-			error = 'Please select a subject first';
+		if (!textInput && !filePath) {
+			error = 'Please provide either text input or select a file';
 			return;
 		}
 
@@ -70,41 +44,52 @@
 		error = null;
 
 		try {
-			const result = await processWithAI(textInput, files);
-
-			// Parse JSON response, removing any markdown code blocks
-			const jsonStr = result?.replace(/```json\n?|\n?```/g, '');
-			if (!jsonStr) {
-				throw new Error('No flashcards generated');
+			const formData = new FormData();
+			formData.append('temperature', temperature[0].toString());
+			formData.append('text', textInput);
+			formData.append('api_key', $settings.googleAIStudioKey);
+			if (filePath) {
+				formData.append('filepath', filePath);
 			}
-			const flashcards: any = JSON.parse(jsonStr);
 
-			// Convert AI response to flashcard format
-			const newFlashcards: Flashcard[] = flashcards.map((card: any) => ({
-				id: crypto.randomUUID(),
-				front: {
-					text: card.front,
-					image: null
-				},
-				back: {
-					text: card.back,
-					image: null
-				},
-				difficulty: 'hard'
-			}));
+			const response = await fetch('/api/flashcards/generate', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to generate flashcards');
+			}
+
+			const data = await response.json();
 
 			// Update the selected subject with new flashcards
-			$selectedSubject.flashcards = [...$selectedSubject.flashcards, ...newFlashcards];
+			if ($selectedSubject) {
+				const newFlashcards = data.response.map((card: any) => ({
+					id: nanoid(),
+					front: { text: card.front },
+					back: { text: card.back },
+					difficulty: 'hard'
+				}));
 
-			// Update the subjects store
-			$subjects = $subjects.map((subject) =>
-				subject.id === $selectedSubject.id ? $selectedSubject : subject
-			);
+				subjects.update((subjs) => {
+					const updatedSubjects = subjs.map((subj) => {
+						if (subj.id === $selectedSubject.id) {
+							return {
+								...subj,
+								flashcards: [...subj.flashcards, ...newFlashcards]
+							};
+						}
+						return subj;
+					});
+					return updatedSubjects;
+				});
+			}
 
 			open = false;
-		} catch (e) {
-			error = e.message;
-			console.error('Error processing flashcards:', e);
+		} catch (err) {
+			console.error('Error:', err);
+			error = 'Failed to generate flashcards. Please try again.';
 		} finally {
 			isProcessing = false;
 		}
@@ -116,7 +101,7 @@
 		<Dialog.Header>
 			<Dialog.Title>Import Flashcards with AI</Dialog.Title>
 			<Dialog.Description>
-				Paste your text or upload files to generate flashcards. At least one is required.
+				Paste your text or select a file to generate flashcards. At least one is required.
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="grid gap-4 py-4">
@@ -130,15 +115,13 @@
 				/>
 			</div>
 			<div class="grid gap-2">
-				<Label for="files">Upload Files</Label>
-				<input
-					type="file"
-					id="files"
-					bind:files
-					multiple
-					accept=".txt,.pdf,.doc,.docx"
-					class="cursor-pointer"
-				/>
+				<Label>File Selection</Label>
+				<div class="flex gap-2 items-center">
+					<Button type="button" on:click={selectFile}>Select File</Button>
+					{#if filePath}
+						<span class="text-sm text-gray-600">{filePath}</span>
+					{/if}
+				</div>
 			</div>
 			<div class="grid gap-2">
 				<Label for="temperature">Temperature: {temperature[0].toFixed(2)}</Label>

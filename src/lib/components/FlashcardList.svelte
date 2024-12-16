@@ -62,7 +62,7 @@
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
-				<Button size="default" variant="outline" on:click={() => (aiImportOpen = true)}>
+				<Button size="default" variant="default" on:click={() => (aiImportOpen = true)}>
 					<Sparkles class="w-4 h-4 mr-2 " color={'yellow'} />
 					Import with AI
 				</Button>
@@ -77,7 +77,7 @@
 
 			<div class="space-x-2">
 				{#if $selectedFlashcard}
-					<Button size="default" variant="outline" on:click={() => (editDialogOpen = true)}
+					<Button size="default" variant="default" on:click={() => (editDialogOpen = true)}
 						>Edit</Button
 					>
 					<Button

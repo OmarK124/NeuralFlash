@@ -57,7 +57,7 @@
 
 <Dialog bind:open>
 	<DialogTrigger>
-		<Button variant="outline">Add Flashcard</Button>
+		<Button variant="default">Add Flashcard</Button>
 	</DialogTrigger>
 	<DialogContent class="sm:max-w-[600px]">
 		<DialogHeader>
