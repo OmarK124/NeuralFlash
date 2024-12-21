@@ -1,6 +1,9 @@
 # NeuralFlash 🧠💡
 
 A modern, fast, and intelligent flashcard application that helps you learn smarter, not harder.
+## Demo 💻
+
+https://github.com/user-attachments/assets/4df312c5-f8e0-4a48-bbb1-e9f9f934f640
 
 ## Features ✨
 
