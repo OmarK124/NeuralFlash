@@ -4,11 +4,15 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import { Slider } from '$lib/components/ui/slider/index.js';
-	import { selectedSubject, settings, subjects } from '$lib/stores';
-	import { nanoid } from 'nanoid';
+
+	import { selectedSubject, settings, subjects, type Flashcard } from '$lib/stores';
 	import { LoaderCircle } from 'lucide-svelte';
-	import { open as TauriOpen } from '@tauri-apps/plugin-dialog';
+	import { open as file_open } from '@tauri-apps/plugin-dialog';
+	import { BaseDirectory, readFile } from '@tauri-apps/plugin-fs';
+
 	export let open = false;
+
+	const apiKey = $settings.googleAIStudioKey;
 
 	let textInput = '';
 	let filePath: string | null = null;
@@ -18,78 +22,210 @@
 
 	async function selectFile() {
 		try {
-			const selected = await TauriOpen({
+			const selected = await file_open({
 				multiple: false,
-				directory: false
+				directory: false,
+				filters: [
+					{
+						name: 'PDF',
+						extensions: ['pdf']
+					}
+				]
 			});
-			filePath = selected;
+
+			if (typeof selected === 'string') {
+				filePath = selected;
+				console.log('Selected file:', filePath);
+			} else if (selected === null) {
+				console.log('File selection was canceled.');
+				filePath = null;
+			} else {
+				console.error('Unexpected return type from file selection.');
+				filePath = null;
+			}
 		} catch (err) {
 			console.error('Error selecting file:', err);
 			error = 'Failed to select file';
 		}
-		console.log('Selected file:', filePath);
 	}
 
-	async function handleSubmit() {
-		if (!$settings.googleAIStudioKey) {
-			error = 'API key is required. Please add it in settings.';
+	async function createFlashcards() {
+		if (!apiKey) {
+			error = 'API Key is required. Please set it in settings.';
 			return;
 		}
 		if (!textInput && !filePath) {
-			error = 'Please provide either text input or select a file';
+			error = 'Please provide either text input or select a file.';
 			return;
 		}
 
 		isProcessing = true;
 		error = null;
+		let uploadedFileUri: string | null = null;
 
 		try {
-			const formData = new FormData();
-			formData.append('temperature', temperature[0].toString());
-			formData.append('text', textInput);
-			formData.append('api_key', $settings.googleAIStudioKey);
+			let fileContent = '';
 			if (filePath) {
-				formData.append('filepath', filePath);
+				const file = await readFile(filePath);
+				const fileBlob = new Blob([file], { type: 'application/pdf' });
+
+				const uploadUrlResponse = await fetch(
+					`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`,
+					{
+						method: 'POST',
+						headers: {
+							'X-Goog-Upload-Command': 'start',
+							'X-Goog-Upload-Header-Content-Length': fileBlob.size.toString(),
+							'X-Goog-Upload-Header-Content-Type': 'application/pdf',
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							file: { display_name: filePath.split('/').pop() || 'document.pdf' }
+						})
+					}
+				);
+
+				if (!uploadUrlResponse.ok) {
+					const errorData = await uploadUrlResponse.json();
+					throw new Error(
+						`File upload start failed: ${uploadUrlResponse.status} - ${errorData.error?.message}`
+					);
+				}
+
+				const uploadUrlData = await uploadUrlResponse.json();
+				const uploadUrl = uploadUrlData.upload_uri;
+
+				const uploadResponse = await fetch(uploadUrl, {
+					method: 'POST',
+					headers: {
+						'X-Goog-Upload-Command': 'upload, finalize',
+						'Content-Type': 'application/pdf'
+					},
+					body: fileBlob
+				});
+
+				if (!uploadResponse.ok) {
+					const errorData = await uploadResponse.json();
+					throw new Error(
+						`File upload failed: ${uploadResponse.status} - ${errorData.error?.message}`
+					);
+				}
+
+				const uploadFinalizeData = await uploadResponse.json();
+				uploadedFileUri = uploadFinalizeData.fileUri;
 			}
 
-			const response = await fetch('/api/flashcards/generate', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to generate flashcards');
-			}
-
-			const data = await response.json();
-
-			// Update the selected subject with new flashcards
-			if ($selectedSubject) {
-				const newFlashcards = data.response.map((card: any) => ({
-					id: nanoid(),
-					front: { text: card.front },
-					back: { text: card.back },
-					difficulty: 'hard'
-				}));
-
-				subjects.update((subjs) => {
-					const updatedSubjects = subjs.map((subj) => {
-						if (subj.id === $selectedSubject.id) {
-							return {
-								...subj,
-								flashcards: [...subj.flashcards, ...newFlashcards]
-							};
-						}
-						return subj;
-					});
-					return updatedSubjects;
+			let parts: any = [
+				{
+					text: `Give comprehensive flashcards on this information \n\n${textInput}`
+				}
+			];
+			if (uploadedFileUri) {
+				parts.push({
+					fileData: {
+						fileUri: uploadedFileUri,
+						mimeType: 'application/pdf'
+					}
 				});
 			}
+			const generateContentResponse = await fetch(
+				`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						contents: [
+							{
+								role: 'user',
+								parts: parts
+							}
+						],
+						generationConfig: {
+							temperature: temperature[0],
+							topK: 40,
+							topP: 0.95,
+							maxOutputTokens: 8192,
+							responseMimeType: 'application/json',
+							responseSchema: {
+								type: 'object',
+								properties: {
+									' response': {
+										type: 'array',
+										items: {
+											type: 'object',
+											properties: {
+												front: {
+													type: 'string'
+												},
+												back: {
+													type: 'string'
+												}
+											},
+											required: ['front', 'back']
+										}
+									}
+								},
+								required: [' response']
+							}
+						}
+					})
+				}
+			);
 
-			open = false;
-		} catch (err) {
-			console.error('Error:', err);
-			error = 'Failed to generate flashcards. Please try again.';
+			if (!generateContentResponse.ok) {
+				const errorData = await generateContentResponse.json();
+				throw new Error(
+					`Flashcard generation failed: ${generateContentResponse.status} - ${errorData.error?.message}`
+				);
+			}
+
+			const responseData = await generateContentResponse.json();
+			//get candidates[0]
+			let jsonText = '';
+			let flashcardsResponse = responseData.candidates?.[0]?.content?.parts;
+			for (let i = 0; i < flashcardsResponse.length; i++) {
+				jsonText += flashcardsResponse[i].text;
+			}
+			if (jsonText) {
+				try {
+					const parsedFlashcards = JSON.parse(jsonText)[' response'];
+					if (parsedFlashcards && Array.isArray(parsedFlashcards)) {
+						const newFlashcards: Flashcard[] = parsedFlashcards.map((card: any) => ({
+							id: crypto.randomUUID(),
+							front: { text: card.front, image: undefined },
+							back: { text: card.back, image: undefined },
+							difficulty: 'hard' // Default difficulty
+						}));
+
+						// Update the subjects store
+						if ($selectedSubject) {
+							$subjects = $subjects.map((subject) => {
+								if (subject.id === $selectedSubject.id) {
+									return {
+										...subject,
+										flashcards: [...subject.flashcards, ...newFlashcards]
+									};
+								}
+								return subject;
+							});
+						}
+
+						open = false; // Close the dialog on success
+					} else {
+						throw new Error('Invalid flashcard format received from the API.');
+					}
+				} catch (parseError) {
+					console.error('Error parsing flashcards:', parseError);
+					error = 'Error parsing the generated flashcards.';
+				}
+			} else {
+				error = 'No flashcards were generated.';
+			}
+		} catch (err: any) {
+			console.error('Error during flashcard generation:', err);
+			error = err.message || 'An unexpected error occurred.';
 		} finally {
 			isProcessing = false;
 		}
@@ -133,7 +269,7 @@
 		</div>
 		<Dialog.Footer>
 			<Dialog.Close>Cancel</Dialog.Close>
-			<Button type="submit" on:click={handleSubmit} disabled={isProcessing}>
+			<Button type="submit" on:click={createFlashcards} disabled={isProcessing}>
 				{#if isProcessing}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					Processing...

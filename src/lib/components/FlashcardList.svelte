@@ -20,6 +20,8 @@
 		currentFlashcards = $subjects.find((s) => s.id === $selectedSubject.id)?.flashcards || [];
 	}
 
+	$: console.log($selectedFlashcard);
+
 	function deleteFlashcard(flashcard: any) {
 		if ($settings.alwaysAskBeforeDelete) {
 			flashcardToDelete = flashcard;

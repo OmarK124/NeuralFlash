@@ -20,7 +20,7 @@
 		$subjects = [
 			...$subjects,
 			{
-				id: nanoid(),
+				id: crypto.randomUUID(),
 				name: newSubjectName,
 				flashcards: []
 			}
